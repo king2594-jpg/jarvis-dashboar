@@ -3,45 +3,113 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>J.A.R.V.I.S. Portfolio Dashboard</title>
+    <title>J.A.R.V.I.S. Advanced Dashboard</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: var(--tg-theme-bg-color, #f4f4f5);
-            color: var(--tg-theme-text-color, #222);
-            margin: 0; padding: 20px;
+        /* 럭셔리 핀테크 스타일 CSS */
+        body { 
+            background: var(--tg-theme-bg-color, #1e1e1e); 
+            color: var(--tg-theme-text-color, #ffffff); 
+            font-family: -apple-system, BlinkMacSystemFont, "Pretendard", "Segoe UI", Roboto, sans-serif; 
+            margin: 0; padding: 16px; 
+            box-sizing: border-box;
         }
-        .card {
-            background-color: var(--tg-theme-secondary-bg-color, #fff);
-            border-radius: 16px;
-            padding: 20px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-            margin-bottom: 20px;
+        .card { 
+            background: var(--tg-theme-secondary-bg-color, #2a2a2a); 
+            border-radius: 20px; 
+            padding: 24px; 
+            margin-bottom: 16px; 
+            box-shadow: 0 8px 24px rgba(0,0,0,0.15); 
         }
-        h2 { margin-top: 0; font-size: 18px; color: var(--tg-theme-hint-color, #888); }
-        .total-value { font-size: 32px; font-weight: bold; color: var(--tg-theme-text-color, #222); margin: 10px 0; }
-        .profit { font-size: 16px; font-weight: 600; color: #ff3b30; } /* 한국식 상승장 빨간색 */
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .title { font-size: 14px; font-weight: 500; color: var(--tg-theme-hint-color, #aaaaaa); }
+        .balance { font-size: 34px; font-weight: 800; margin: 4px 0; letter-spacing: -0.5px; }
+        .profit { font-size: 16px; font-weight: 700; color: #ff3b30; display: flex; align-items: center; gap: 4px; }
+        .profit.blue { color: #007aff; }
+        
+        /* 보유 종목 리스트 스타일 */
+        .stock-list { list-style: none; padding: 0; margin: 0; }
+        .stock-item { display: flex; justify-content: space-between; align-items: center; padding: 16px 0; border-bottom: 1px solid rgba(150,150,150,0.1); }
+        .stock-item:last-child { border-bottom: none; padding-bottom: 0; }
+        .stock-info h4 { margin: 0; font-size: 16px; font-weight: 700; }
+        .stock-info p { margin: 4px 0 0; font-size: 13px; color: var(--tg-theme-hint-color, #aaaaaa); }
+        .stock-price { text-align: right; }
+        .stock-price h4 { margin: 0; font-size: 16px; font-weight: 700; }
+        .badge { display: inline-block; padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: 800; margin-top: 6px; }
+        .badge.red { background: rgba(255, 59, 48, 0.15); color: #ff3b30; }
+        .badge.blue { background: rgba(0, 122, 255, 0.15); color: #007aff; }
+
+        /* 부드러운 등장 애니메이션 */
+        @keyframes slideUp { 
+            from { opacity: 0; transform: translateY(20px); } 
+            to { opacity: 1; transform: translateY(0); } 
+        }
+        .animated { animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; }
+        .delay-1 { animation-delay: 0.1s; }
+        .delay-2 { animation-delay: 0.2s; }
     </style>
 </head>
 <body>
-    <div class="card">
-        <h2>총 자산 평가액</h2>
-        <div class="total-value" id="totalAsset">30,522,623 원</div>
-        <div class="profit">▲ +3,486,658 (11.4%)</div>
+
+    <div class="card animated">
+        <div class="header">
+            <span class="title">총 자산 평가액</span>
+            <span style="font-size: 22px;">💎</span>
+        </div>
+        <div class="balance">30,522,623 원</div>
+        <div class="profit">▲ 3,486,658 (11.4%)</div>
     </div>
 
-    <div class="card">
-        <canvas id="portfolioChart"></canvas>
+    <div class="card animated delay-1">
+        <div class="title" style="margin-bottom: 16px;">포트폴리오 비중</div>
+        <div style="position: relative; height: 220px;">
+            <canvas id="portfolioChart"></canvas>
+        </div>
+    </div>
+
+    <div class="card animated delay-2">
+        <div class="title" style="margin-bottom: 8px;">보유 종목 상세</div>
+        <ul class="stock-list">
+            <li class="stock-item">
+                <div class="stock-info">
+                    <h4>삼성전자</h4>
+                    <p>50주 · 005930.KS</p>
+                </div>
+                <div class="stock-price">
+                    <h4>3,950,000 원</h4>
+                    <div class="badge red">▲ 4.2%</div>
+                </div>
+            </li>
+            <li class="stock-item">
+                <div class="stock-info">
+                    <h4>Apple</h4>
+                    <p>12주 · AAPL</p>
+                </div>
+                <div class="stock-price">
+                    <h4>2,840,000 원</h4>
+                    <div class="badge red">▲ 12.5%</div>
+                </div>
+            </li>
+            <li class="stock-item">
+                <div class="stock-info">
+                    <h4>Tesla</h4>
+                    <p>5주 · TSLA</p>
+                </div>
+                <div class="stock-price">
+                    <h4>1,150,000 원</h4>
+                    <div class="badge blue">▼ -2.1%</div>
+                </div>
+            </li>
+        </ul>
     </div>
 
     <script>
-        // 텔레그램 웹앱 초기화
+        // 텔레그램 테마에 맞게 앱 사이즈 최대로 확장
         window.Telegram.WebApp.ready();
         window.Telegram.WebApp.expand();
 
-        // 도넛 차트 렌더링
+        // 도넛 차트 애니메이션 렌더링
         const ctx = document.getElementById('portfolioChart').getContext('2d');
         new Chart(ctx, {
             type: 'doughnut',
@@ -49,11 +117,23 @@
                 labels: ['국내주식', '해외주식', '연금(IRP)'],
                 datasets: [{
                     data: [13027390, 6478298, 1050385],
-                    backgroundColor: ['#ff9500', '#007aff', '#34c759'],
-                    borderWidth: 0
+                    backgroundColor: ['#FF2D55', '#007AFF', '#34C759'], /* 더 쨍하고 세련된 색상 */
+                    borderWidth: 0,
+                    hoverOffset: 6
                 }]
             },
-            options: { responsive: true, cutout: '75%' }
+            options: { 
+                responsive: true, 
+                maintainAspectRatio: false,
+                cutout: '75%',
+                plugins: {
+                    legend: { 
+                        position: 'bottom', 
+                        labels: { color: window.Telegram.WebApp.colorScheme === 'dark' ? '#fff' : '#000', padding: 20 }
+                    }
+                },
+                animation: { animateScale: true, animateRotate: true }
+            }
         });
     </script>
 </body>
