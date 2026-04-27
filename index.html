@@ -3,221 +3,126 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>J.A.R.V.I.S. 종합 자산 대시보드</title>
+    <title>J.A.R.V.I.S. 하이브리드 대시보드</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        body { background: var(--tg-theme-bg-color, #1e1e1e); color: var(--tg-theme-text-color, #ffffff); font-family: -apple-system, BlinkMacSystemFont, "Pretendard", "Segoe UI", Roboto, sans-serif; margin: 0; padding: 16px; box-sizing: border-box; }
+        body { background: var(--tg-theme-bg-color, #1e1e1e); color: var(--tg-theme-text-color, #ffffff); font-family: -apple-system, sans-serif; margin: 0; padding: 16px; }
+        .card { background: var(--tg-theme-secondary-bg-color, #2a2a2a); border-radius: 16px; padding: 20px; margin-bottom: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .title { font-size: 16px; font-weight: 800; color: var(--tg-theme-hint-color, #aaaaaa); margin-bottom: 12px; }
         
-        /* 탭 메뉴 스타일 */
-        .tabs { display: flex; background: rgba(150,150,150,0.1); border-radius: 12px; padding: 4px; margin-bottom: 16px; }
-        .tab-btn { flex: 1; padding: 10px; text-align: center; font-size: 14px; font-weight: 700; color: var(--tg-theme-hint-color, #aaaaaa); background: none; border: none; border-radius: 8px; cursor: pointer; transition: 0.3s; }
-        .tab-btn.active { background: var(--tg-theme-secondary-bg-color, #2a2a2a); color: var(--tg-theme-text-color, #ffffff); box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
+        /* 범용 데이터 스타일 */
+        .dynamic-item { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid rgba(150,150,150,0.1); }
+        .dynamic-item:last-child { border-bottom: none; }
+        .dynamic-key { font-weight: 600; font-size: 15px; }
+        .dynamic-val { font-weight: 800; color: #007aff; font-size: 15px; }
         
-        .card { background: var(--tg-theme-secondary-bg-color, #2a2a2a); border-radius: 20px; padding: 24px; margin-bottom: 16px; box-shadow: 0 8px 24px rgba(0,0,0,0.15); }
-        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-        .title { font-size: 14px; font-weight: 500; color: var(--tg-theme-hint-color, #aaaaaa); }
-        .balance { font-size: 34px; font-weight: 800; margin: 4px 0; letter-spacing: -0.5px; }
-        .profit { font-size: 16px; font-weight: 700; display: flex; align-items: center; gap: 4px; }
-        .profit.up { color: #ff3b30; }
-        .profit.down { color: #007aff; }
-        
-        /* 리스트 공통 스타일 */
-        .data-list { list-style: none; padding: 0; margin: 0; }
-        .data-item { display: flex; justify-content: space-between; align-items: center; padding: 16px 0; border-bottom: 1px solid rgba(150,150,150,0.1); }
-        .data-item:last-child { border-bottom: none; padding-bottom: 0; }
-        .data-info h4 { margin: 0; font-size: 16px; font-weight: 700; }
-        .data-info p { margin: 4px 0 0; font-size: 13px; color: var(--tg-theme-hint-color, #aaaaaa); }
-        .data-price { text-align: right; }
-        .data-price h4 { margin: 0; font-size: 16px; font-weight: 700; }
-        
-        .badge { display: inline-block; padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: 800; margin-top: 6px; }
+        /* 주식 전용 스타일 */
+        .profit.up { color: #ff3b30; } .profit.down { color: #007aff; }
+        .badge { padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: 800; }
         .badge.up { background: rgba(255, 59, 48, 0.15); color: #ff3b30; }
         .badge.down { background: rgba(0, 122, 255, 0.15); color: #007aff; }
-        
-        /* 가계부 전용 뱃지 */
-        .badge.income { background: rgba(52, 199, 89, 0.15); color: #34c759; } /* 수입(초록) */
-        .badge.expense { background: rgba(255, 59, 48, 0.15); color: #ff3b30; } /* 지출(빨강) */
-
-        /* 뷰 전환 애니메이션 */
-        .view-section { display: none; animation: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
-        .view-section.active { display: block; }
-        @keyframes slideUp { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body>
-
-    <div class="tabs">
-        <button class="tab-btn active" onclick="switchTab('portfolio')">📈 주식 자산</button>
-        <button class="tab-btn" onclick="switchTab('account')">💳 가계부 내역</button>
-    </div>
-
-    <div id="portfolioView" class="view-section active">
-        <div class="card">
-            <div class="header">
-                <span class="title">총 자산 평가액</span>
-                <span style="font-size: 22px;">💎</span>
-            </div>
-            <div class="balance" id="totalValue">로딩중...</div>
-            <div class="profit" id="totalProfit">-</div>
-        </div>
-
-        <div class="card">
-            <div class="title" style="margin-bottom: 16px;">포트폴리오 비중</div>
-            <div style="position: relative; height: 220px;">
-                <canvas id="portfolioChart"></canvas>
-            </div>
-        </div>
-
-        <div class="card">
-            <div class="title" style="margin-bottom: 8px;">보유 종목 상세</div>
-            <ul class="data-list" id="stockList"></ul>
-        </div>
-    </div>
-
-    <div id="accountView" class="view-section">
-        <div class="card">
-            <div class="header">
-                <span class="title" id="accountMonth">이번 달 내역</span>
-                <span style="font-size: 22px;">💰</span>
-            </div>
-            <div style="display: flex; justify-content: space-between; margin-top: 12px;">
-                <div>
-                    <p style="margin: 0; font-size: 12px; color: var(--tg-theme-hint-color);">총 수입</p>
-                    <h3 style="margin: 4px 0 0; color: #34c759;" id="totalIncome">0 원</h3>
-                </div>
-                <div style="text-align: right;">
-                    <p style="margin: 0; font-size: 12px; color: var(--tg-theme-hint-color);">총 지출</p>
-                    <h3 style="margin: 4px 0 0; color: #ff3b30;" id="totalExpense">0 원</h3>
-                </div>
-            </div>
-        </div>
-
-        <div class="card">
-            <div class="title" style="margin-bottom: 8px;">상세 거래 내역</div>
-            <ul class="data-list" id="accountList">
-                <p style="text-align:center; color:gray; font-size: 13px;">데이터를 불러오는 중입니다...</p>
-            </ul>
-        </div>
+    <div id="dashboard-container">
+        <p style="text-align: center; color: gray; margin-top: 50px;">데이터를 분석 중입니다...</p>
     </div>
 
     <script>
         window.Telegram.WebApp.ready();
         window.Telegram.WebApp.expand();
 
-        // 탭 전환 함수
-        function switchTab(tabName) {
-            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-            document.querySelectorAll('.view-section').forEach(view => view.classList.remove('active'));
-            
-            if(tabName === 'portfolio') {
-                document.querySelectorAll('.tab-btn')[0].classList.add('active');
-                document.getElementById('portfolioView').classList.add('active');
-            } else {
-                document.querySelectorAll('.tab-btn')[1].classList.add('active');
-                document.getElementById('accountView').classList.add('active');
-            }
-        }
-
-        // 숫자 포맷 함수
-        const formatNum = (num) => Math.round(num).toLocaleString('ko-KR');
-
-        // URL 파라미터 파싱
         const urlParams = new URLSearchParams(window.location.search);
-        let dataParam = urlParams.get('data');
-        
-        // 기본 데이터 구조
-        let parsedData = {
-            portfolio: { total: 0, profit_amount: 0, profit_rate: 0, items: [] },
-            account: { month: "이번 달", records: [] }
-        };
+        const dataParam = urlParams.get('data');
+        const container = document.getElementById('dashboard-container');
+
+        const formatNum = (num) => Math.round(num).toLocaleString('ko-KR');
 
         if (dataParam) {
             try { 
-                let rawData = JSON.parse(decodeURIComponent(dataParam)); 
-                // 호환성: 봇이 포트폴리오만 보냈을 때와 합쳐서 보냈을 때 모두 대응
-                if(rawData.items) parsedData.portfolio = rawData; 
-                if(rawData.portfolio) parsedData.portfolio = rawData.portfolio;
-                if(rawData.account) parsedData.account = rawData.account;
-            } catch (e) { console.error("데이터 파싱 에러:", e); }
-        }
+                const allData = JSON.parse(decodeURIComponent(dataParam));
+                container.innerHTML = ''; // 로딩 텍스트 지우기
 
-        /* ------------------------------------------------------------------
-           1. 포트폴리오 렌더링
-        ------------------------------------------------------------------ */
-        document.getElementById('totalValue').innerText = formatNum(parsedData.portfolio.total) + ' 원';
-        const profitEl = document.getElementById('totalProfit');
-        if (parsedData.portfolio.profit_rate >= 0) {
-            profitEl.innerHTML = `▲ ${formatNum(parsedData.portfolio.profit_amount || 0)} (${parsedData.portfolio.profit_rate || 0}%)`;
-            profitEl.className = 'profit up';
+                // 1. 주식 포트폴리오가 있으면 화려하게 렌더링
+                if (allData.portfolio && allData.portfolio.items) {
+                    const pf = allData.portfolio;
+                    let pfHtml = `
+                        <div class="card">
+                            <div class="title">📈 주식 자산 현황</div>
+                            <h2 style="margin: 4px 0;">${formatNum(pf.total || 0)} 원</h2>
+                            <div style="height: 200px; margin-top: 16px;"><canvas id="pfChart"></canvas></div>
+                            <div style="margin-top: 16px;">
+                    `;
+                    
+                    let labels = []; let chartData = [];
+                    pf.items.forEach(item => {
+                        labels.push(item.name); chartData.push(item.value);
+                        pfHtml += `
+                            <div class="dynamic-item">
+                                <div><span class="dynamic-key">${item.name}</span> <span style="font-size:12px;color:gray;">${item.quantity || item.shares || 0}주</span></div>
+                                <div class="dynamic-val">${formatNum(item.value)} 원</div>
+                            </div>
+                        `;
+                    });
+                    pfHtml += `</div></div>`;
+                    container.innerHTML += pfHtml;
+
+                    // 차트 그리기
+                    if(chartData.length > 0) {
+                        new Chart(document.getElementById('pfChart'), {
+                            type: 'doughnut',
+                            data: { labels: labels, datasets: [{ data: chartData, borderWidth: 0 }] },
+                            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: {color: '#aaa'} } } }
+                        });
+                    }
+                }
+
+                // 2. 가계부가 있으면 렌더링
+                if (allData.account && allData.account.records) {
+                    const acc = allData.account;
+                    let accHtml = `<div class="card"><div class="title">💳 가계부 내역 (${acc.month || '이번 달'})</div>`;
+                    acc.records.forEach(rec => {
+                        const color = rec.type === '수입' ? '#34c759' : '#ff3b30';
+                        const sign = rec.type === '수입' ? '+' : '-';
+                        accHtml += `
+                            <div class="dynamic-item">
+                                <div><span class="dynamic-key">${rec.content || rec.category}</span> <span style="font-size:12px;color:gray;">${rec.date}</span></div>
+                                <div style="font-weight: 800; color: ${color};">${sign}${formatNum(rec.amount)} 원</div>
+                            </div>
+                        `;
+                    });
+                    accHtml += `</div>`;
+                    container.innerHTML += accHtml;
+                }
+
+                // 3. ✨ AI가 알아서 만든 '그 외의 범용 데이터' 자동 렌더링 ✨
+                for (const [key, data] of Object.entries(allData)) {
+                    if (key !== 'portfolio' && key !== 'account') {
+                        let dynamicHtml = `<div class="card"><div class="title">📁 ${key.toUpperCase()} DATA</div>`;
+                        const targetArray = data.items || data.records || data;
+                        
+                        if (Array.isArray(targetArray)) {
+                            targetArray.forEach(item => {
+                                dynamicHtml += `
+                                    <div class="dynamic-item">
+                                        <span class="dynamic-key">${item.name || item.content || item.title || item.category || '항목'}</span>
+                                        <span class="dynamic-val">${item.value || item.amount || item.count || item.time || ''}</span>
+                                    </div>
+                                `;
+                            });
+                        }
+                        dynamicHtml += `</div>`;
+                        container.innerHTML += dynamicHtml;
+                    }
+                }
+
+            } catch (e) {
+                container.innerHTML = `<p style="color:red; text-align:center;">데이터 파싱 오류가 발생했습니다.</p>`;
+            }
         } else {
-            profitEl.innerHTML = `▼ ${formatNum(Math.abs(parsedData.portfolio.profit_amount || 0))} (${parsedData.portfolio.profit_rate || 0}%)`;
-            profitEl.className = 'profit down';
+            container.innerHTML = `<p style="text-align:center; color:gray; margin-top:50px;">등록된 데이터가 없습니다.</p>`;
         }
-
-        const stockListEl = document.getElementById('stockList');
-        stockListEl.innerHTML = parsedData.portfolio.items.length === 0 ? '<p style="text-align:center; color:gray; font-size: 13px;">등록된 주식 데이터가 없습니다.</p>' : '';
-        
-        let chartLabels = []; let chartData = [];
-        let chartColors = ['#FF2D55', '#007AFF', '#34C759', '#FFCC00', '#AF52DE', '#FF9500', '#5856D6'];
-
-        parsedData.portfolio.items.forEach(item => {
-            chartLabels.push(item.name); chartData.push(item.value);
-            const rateClass = (item.rate || 0) >= 0 ? 'up' : 'down';
-            const rateArrow = (item.rate || 0) >= 0 ? '▲' : '▼';
-            stockListEl.innerHTML += `
-                <li class="data-item">
-                    <div class="data-info">
-                        <h4>${item.name}</h4>
-                        <p>${item.shares > 0 || item.quantity > 0 ? (item.shares || item.quantity) + '주' : item.category || '기타'}</p>
-                    </div>
-                    <div class="data-price">
-                        <h4>${formatNum(item.value)} 원</h4>
-                        ${item.rate !== undefined ? `<div class="badge ${rateClass}">${rateArrow} ${Math.abs(item.rate)}%</div>` : ''}
-                    </div>
-                </li>
-            `;
-        });
-
-        if(chartData.length > 0) {
-            new Chart(document.getElementById('portfolioChart').getContext('2d'), {
-                type: 'doughnut',
-                data: { labels: chartLabels, datasets: [{ data: chartData, backgroundColor: chartColors.slice(0, chartLabels.length), borderWidth: 0, hoverOffset: 6 }] },
-                options: { responsive: true, maintainAspectRatio: false, cutout: '75%', plugins: { legend: { position: 'bottom', labels: { color: '#aaaaaa', padding: 20 } } } }
-            });
-        }
-
-        /* ------------------------------------------------------------------
-           2. 가계부 렌더링
-        ------------------------------------------------------------------ */
-        if(parsedData.account.month) document.getElementById('accountMonth').innerText = parsedData.account.month + ' 내역';
-        
-        let tIncome = 0; let tExpense = 0;
-        const accountListEl = document.getElementById('accountList');
-        accountListEl.innerHTML = parsedData.account.records.length === 0 ? '<p style="text-align:center; color:gray; font-size: 13px;">등록된 가계부 데이터가 없습니다.</p>' : '';
-
-        parsedData.account.records.forEach(rec => {
-            if(rec.type === '수입') tIncome += rec.amount;
-            else tExpense += rec.amount;
-
-            const badgeClass = rec.type === '수입' ? 'income' : 'expense';
-            accountListEl.innerHTML += `
-                <li class="data-item">
-                    <div class="data-info">
-                        <h4>${rec.content}</h4>
-                        <p>${rec.date} | ${rec.category} | ${rec.client || '-'}</p>
-                    </div>
-                    <div class="data-price">
-                        <h4 style="color: ${rec.type === '수입' ? '#34c759' : '#ff3b30'};">${rec.type === '수입' ? '+' : '-'}${formatNum(rec.amount)} 원</h4>
-                        <div class="badge ${badgeClass}">${rec.type}</div>
-                    </div>
-                </li>
-            `;
-        });
-
-        document.getElementById('totalIncome').innerText = formatNum(tIncome) + ' 원';
-        document.getElementById('totalExpense').innerText = formatNum(tExpense) + ' 원';
-
     </script>
 </body>
 </html>
