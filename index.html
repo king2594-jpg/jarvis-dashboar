@@ -6,22 +6,64 @@
     <title>J.A.R.V.I.S. 하이브리드 대시보드</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js"></script>
     <style>
-        body { background: var(--tg-theme-bg-color, #1e1e1e); color: var(--tg-theme-text-color, #ffffff); font-family: -apple-system, sans-serif; margin: 0; padding: 16px; }
-        .card { background: var(--tg-theme-secondary-bg-color, #2a2a2a); border-radius: 16px; padding: 20px; margin-bottom: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
-        .title { font-size: 16px; font-weight: 800; color: var(--tg-theme-hint-color, #aaaaaa); margin-bottom: 12px; }
-        
-        /* 범용 데이터 스타일 */
-        .dynamic-item { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid rgba(150,150,150,0.1); }
+        body {
+            background: var(--tg-theme-bg-color, #1e1e1e);
+            color: var(--tg-theme-text-color, #ffffff);
+            font-family: -apple-system, sans-serif;
+            margin: 0;
+            padding: 16px;
+        }
+        .card {
+            background: var(--tg-theme-secondary-bg-color, #2a2a2a);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 16px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .title {
+            font-size: 16px;
+            font-weight: 800;
+            color: var(--tg-theme-hint-color, #aaaaaa);
+            margin-bottom: 12px;
+        }
+        .category-header {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--tg-theme-hint-color, #999);
+            margin-top: 20px;
+            margin-bottom: 8px;
+            padding-left: 4px;
+        }
+        .category-subtotal {
+            font-size: 13px;
+            color: #007aff;
+            font-weight: 600;
+            margin-top: 6px;
+            padding-left: 4px;
+        }
+        .dynamic-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid rgba(150,150,150,0.1);
+        }
         .dynamic-item:last-child { border-bottom: none; }
         .dynamic-key { font-weight: 600; font-size: 15px; }
         .dynamic-val { font-weight: 800; color: #007aff; font-size: 15px; }
-        
-        /* 주식 전용 스타일 */
-        .profit.up { color: #ff3b30; } .profit.down { color: #007aff; }
-        .badge { padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: 800; }
-        .badge.up { background: rgba(255, 59, 48, 0.15); color: #ff3b30; }
-        .badge.down { background: rgba(0, 122, 255, 0.15); color: #007aff; }
+        .item-sub { font-size: 12px; color: gray; }
+        .debug-info {
+            font-size: 11px;
+            color: #555;
+            text-align: center;
+            margin-top: 20px;
+            word-break: break-all;
+        }
+        .error-box {
+            border: 1px solid #ff3b30;
+            background: rgba(255, 59, 48, 0.1);
+        }
     </style>
 </head>
 <body>
@@ -29,100 +71,305 @@
         <p style="text-align: center; color: gray; margin-top: 50px;">데이터를 분석 중입니다...</p>
     </div>
 
-    <script>
-        window.Telegram.WebApp.ready();
-        window.Telegram.WebApp.expand();
+<script>
+(function() {
+    'use strict';
 
-        const urlParams = new URLSearchParams(window.location.search);
-        const dataParam = urlParams.get('data');
-        const container = document.getElementById('dashboard-container');
-
-        const formatNum = (num) => Math.round(num).toLocaleString('ko-KR');
-
-        if (dataParam) {
-            try { 
-                const allData = JSON.parse(decodeURIComponent(dataParam));
-                container.innerHTML = ''; // 로딩 텍스트 지우기
-
-                // 1. 주식 포트폴리오가 있으면 화려하게 렌더링
-                if (allData.portfolio && allData.portfolio.items) {
-                    const pf = allData.portfolio;
-                    let pfHtml = `
-                        <div class="card">
-                            <div class="title">📈 주식 자산 현황</div>
-                            <h2 style="margin: 4px 0;">${formatNum(pf.total || 0)} 원</h2>
-                            <div style="height: 200px; margin-top: 16px;"><canvas id="pfChart"></canvas></div>
-                            <div style="margin-top: 16px;">
-                    `;
-                    
-                    let labels = []; let chartData = [];
-                    pf.items.forEach(item => {
-                        labels.push(item.name); chartData.push(item.value);
-                        pfHtml += `
-                            <div class="dynamic-item">
-                                <div><span class="dynamic-key">${item.name}</span> <span style="font-size:12px;color:gray;">${item.quantity || item.shares || 0}주</span></div>
-                                <div class="dynamic-val">${formatNum(item.value)} 원</div>
-                            </div>
-                        `;
-                    });
-                    pfHtml += `</div></div>`;
-                    container.innerHTML += pfHtml;
-
-                    // 차트 그리기
-                    if(chartData.length > 0) {
-                        new Chart(document.getElementById('pfChart'), {
-                            type: 'doughnut',
-                            data: { labels: labels, datasets: [{ data: chartData, borderWidth: 0 }] },
-                            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: {color: '#aaa'} } } }
-                        });
-                    }
-                }
-
-                // 2. 가계부가 있으면 렌더링
-                if (allData.account && allData.account.records) {
-                    const acc = allData.account;
-                    let accHtml = `<div class="card"><div class="title">💳 가계부 내역 (${acc.month || '이번 달'})</div>`;
-                    acc.records.forEach(rec => {
-                        const color = rec.type === '수입' ? '#34c759' : '#ff3b30';
-                        const sign = rec.type === '수입' ? '+' : '-';
-                        accHtml += `
-                            <div class="dynamic-item">
-                                <div><span class="dynamic-key">${rec.content || rec.category}</span> <span style="font-size:12px;color:gray;">${rec.date}</span></div>
-                                <div style="font-weight: 800; color: ${color};">${sign}${formatNum(rec.amount)} 원</div>
-                            </div>
-                        `;
-                    });
-                    accHtml += `</div>`;
-                    container.innerHTML += accHtml;
-                }
-
-                // 3. ✨ AI가 알아서 만든 '그 외의 범용 데이터' 자동 렌더링 ✨
-                for (const [key, data] of Object.entries(allData)) {
-                    if (key !== 'portfolio' && key !== 'account') {
-                        let dynamicHtml = `<div class="card"><div class="title">📁 ${key.toUpperCase()} DATA</div>`;
-                        const targetArray = data.items || data.records || data;
-                        
-                        if (Array.isArray(targetArray)) {
-                            targetArray.forEach(item => {
-                                dynamicHtml += `
-                                    <div class="dynamic-item">
-                                        <span class="dynamic-key">${item.name || item.content || item.title || item.category || '항목'}</span>
-                                        <span class="dynamic-val">${item.value || item.amount || item.count || item.time || ''}</span>
-                                    </div>
-                                `;
-                            });
-                        }
-                        dynamicHtml += `</div>`;
-                        container.innerHTML += dynamicHtml;
-                    }
-                }
-
-            } catch (e) {
-                container.innerHTML = `<p style="color:red; text-align:center;">데이터 파싱 오류가 발생했습니다.</p>`;
-            }
-        } else {
-            container.innerHTML = `<p style="text-align:center; color:gray; margin-top:50px;">등록된 데이터가 없습니다.</p>`;
+    // ── Telegram WebApp 안전 초기화 ────────────────────────────────
+    try {
+        if (typeof window.Telegram !== 'undefined' && window.Telegram.WebApp) {
+            window.Telegram.WebApp.ready();
+            window.Telegram.WebApp.expand();
         }
-    </script>
+    } catch (e) {
+        console.warn('Telegram WebApp 초기화 실패 (무시):', e);
+    }
+
+    var container = document.getElementById('dashboard-container');
+
+    function showError(title, message) {
+        container.innerHTML =
+            '<div class="card error-box">' +
+                '<div class="title" style="color:#ff3b30;">⚠️ ' + escapeHtml(title) + '</div>' +
+                '<p style="font-size:13px;">' + escapeHtml(message) + '</p>' +
+                '<p style="font-size:11px; color:gray; margin-top:12px;">' +
+                    '봇에게 「대시보드 다시 열어줘」라고 요청하면 다시 시도됩니다.' +
+                '</p>' +
+            '</div>';
+    }
+
+    function escapeHtml(str) {
+        if (str === null || str === undefined) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
+    function formatNum(num) {
+        var n = Number(num) || 0;
+        return Math.round(n).toLocaleString('ko-KR');
+    }
+
+    // ── URL-safe base64 + gzip 압축 해제 ──────────────────────────
+    function decodeCompressed(b64Str) {
+        if (typeof pako === 'undefined') {
+            throw new Error('pako 라이브러리가 로드되지 않았습니다 (네트워크 차단 가능)');
+        }
+
+        // URL-safe base64 → 표준 base64 + 패딩 복원
+        var standard = b64Str.replace(/-/g, '+').replace(/_/g, '/');
+        var pad = (4 - (standard.length % 4)) % 4;
+        for (var i = 0; i < pad; i++) standard += '=';
+
+        // base64 → 바이너리
+        var binStr;
+        try {
+            binStr = atob(standard);
+        } catch (e) {
+            throw new Error('base64 디코딩 실패: ' + e.message);
+        }
+
+        var bytes = new Uint8Array(binStr.length);
+        for (var j = 0; j < binStr.length; j++) {
+            bytes[j] = binStr.charCodeAt(j);
+        }
+
+        // gzip 압축 해제 (UTF-8 문자열로)
+        var jsonStr = pako.inflate(bytes, { to: 'string' });
+        return JSON.parse(jsonStr);
+    }
+
+    // ── 포트폴리오 렌더링 ─────────────────────────────────────────
+    function renderPortfolio(pf) {
+        if (!pf || !pf.items || !Array.isArray(pf.items) || pf.items.length === 0) {
+            return '';
+        }
+
+        var html =
+            '<div class="card">' +
+                '<div class="title">📈 주식 자산 현황</div>' +
+                '<h2 style="margin:4px 0;">' + formatNum(pf.total) + ' 원</h2>' +
+                '<div style="height:220px; margin-top:16px;"><canvas id="pfChart"></canvas></div>' +
+                '<div style="margin-top:16px;">';
+
+        // 카테고리별 그룹화
+        var groups = { '국내주식': [], '해외주식': [], '연금주식': [], '기타': [] };
+        for (var i = 0; i < pf.items.length; i++) {
+            var item = pf.items[i] || {};
+            var cat = item.category || '기타';
+            if (groups[cat]) groups[cat].push(item);
+            else groups['기타'].push(item);
+        }
+
+        var flags = { '국내주식': '🇰🇷', '해외주식': '🇺🇸', '연금주식': '💰', '기타': '📁' };
+        var categories = ['국내주식', '해외주식', '연금주식', '기타'];
+
+        // 차트 데이터
+        window._chartLabels = [];
+        window._chartData = [];
+
+        for (var c = 0; c < categories.length; c++) {
+            var catName = categories[c];
+            var items = groups[catName];
+            if (items.length === 0) continue;
+
+            var subtotal = 0;
+            for (var k = 0; k < items.length; k++) {
+                subtotal += Number(items[k].value) || 0;
+            }
+
+            html += '<div class="category-header">' +
+                escapeHtml(flags[catName]) + ' ' + escapeHtml(catName) + '</div>';
+
+            for (var m = 0; m < items.length; m++) {
+                var it = items[m];
+                var name = it.name || '?';
+                var value = Number(it.value) || 0;
+                var qty = it.quantity || it.shares || it.qty || 0;
+
+                window._chartLabels.push(name);
+                window._chartData.push(value);
+
+                html +=
+                    '<div class="dynamic-item">' +
+                        '<div>' +
+                            '<span class="dynamic-key">' + escapeHtml(name) + '</span>' +
+                            '<span class="item-sub"> ' + escapeHtml(qty) + '주</span>' +
+                        '</div>' +
+                        '<div class="dynamic-val">' + formatNum(value) + ' 원</div>' +
+                    '</div>';
+            }
+
+            html += '<div class="category-subtotal">소계: ' + formatNum(subtotal) + ' 원</div>';
+        }
+
+        html += '</div></div>';
+        return html;
+    }
+
+    function drawChart() {
+        try {
+            if (typeof Chart === 'undefined') {
+                console.warn('Chart.js 로드 안됨, 차트 스킵');
+                return;
+            }
+            var canvas = document.getElementById('pfChart');
+            if (!canvas) return;
+            if (!window._chartData || window._chartData.length === 0) return;
+
+            new Chart(canvas, {
+                type: 'doughnut',
+                data: {
+                    labels: window._chartLabels,
+                    datasets: [{ data: window._chartData, borderWidth: 0 }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                            labels: { color: '#aaa', font: { size: 10 }, boxWidth: 12 }
+                        }
+                    }
+                }
+            });
+        } catch (e) {
+            console.warn('차트 그리기 실패:', e);
+        }
+    }
+
+    function renderAccount(acc) {
+        if (!acc || !acc.records || !Array.isArray(acc.records)) return '';
+
+        var html = '<div class="card"><div class="title">💳 가계부 내역 (' +
+            escapeHtml(acc.month || '이번 달') + ')</div>';
+
+        for (var i = 0; i < acc.records.length; i++) {
+            var rec = acc.records[i] || {};
+            var color = rec.type === '수입' ? '#34c759' : '#ff3b30';
+            var sign = rec.type === '수입' ? '+' : '-';
+            var label = rec.content || rec.category || '';
+            var amount = Number(rec.amount) || 0;
+
+            html +=
+                '<div class="dynamic-item">' +
+                    '<div>' +
+                        '<span class="dynamic-key">' + escapeHtml(label) + '</span>' +
+                        '<span class="item-sub"> ' + escapeHtml(rec.date || '') + '</span>' +
+                    '</div>' +
+                    '<div style="font-weight:800; color:' + color + ';">' +
+                        sign + formatNum(amount) + ' 원' +
+                    '</div>' +
+                '</div>';
+        }
+        html += '</div>';
+        return html;
+    }
+
+    function renderGeneric(allData) {
+        var html = '';
+        for (var key in allData) {
+            if (!allData.hasOwnProperty(key)) continue;
+            if (key === 'portfolio' || key === 'account') continue;
+
+            var data = allData[key];
+            var section = '<div class="card"><div class="title">📁 ' +
+                escapeHtml(key.toUpperCase()) + ' DATA</div>';
+
+            var arr = null;
+            if (data && typeof data === 'object') {
+                if (Array.isArray(data.items)) arr = data.items;
+                else if (Array.isArray(data.records)) arr = data.records;
+                else if (Array.isArray(data)) arr = data;
+            }
+
+            if (arr && arr.length > 0) {
+                for (var i = 0; i < arr.length; i++) {
+                    var item = arr[i] || {};
+                    var label = item.name || item.content || item.title || item.category || '항목';
+                    var val = item.value || item.amount || item.count || item.time || '';
+
+                    section +=
+                        '<div class="dynamic-item">' +
+                            '<span class="dynamic-key">' + escapeHtml(label) + '</span>' +
+                            '<span class="dynamic-val">' + escapeHtml(val) + '</span>' +
+                        '</div>';
+                }
+                html += section + '</div>';
+            }
+        }
+        return html;
+    }
+
+    function renderDashboard(allData, sourceLabel) {
+        var html = '';
+
+        if (allData && allData.portfolio) {
+            html += renderPortfolio(allData.portfolio);
+        }
+        if (allData && allData.account) {
+            html += renderAccount(allData.account);
+        }
+        html += renderGeneric(allData || {});
+
+        if (html === '') {
+            html = '<div class="card"><p style="text-align:center; color:gray;">' +
+                '표시할 데이터가 없습니다.</p></div>';
+        }
+
+        // 디버그 정보
+        html += '<div class="debug-info">Source: ' + escapeHtml(sourceLabel) + '</div>';
+
+        container.innerHTML = html;
+
+        // 차트는 DOM 삽입 후
+        drawChart();
+    }
+
+    // ═══ 메인 진입점 ═══════════════════════════════════════════════
+    try {
+        var urlParams = new URLSearchParams(window.location.search);
+        var compressedParam = urlParams.get('d');
+        var dataParam = urlParams.get('data');
+
+        var allData = null;
+        var source = 'none';
+
+        if (compressedParam) {
+            try {
+                allData = decodeCompressed(compressedParam);
+                source = 'gzip (' + compressedParam.length + ' chars)';
+            } catch (e) {
+                console.error('압축 해제 실패:', e);
+                showError('압축 해제 실패', e.message || String(e));
+                return;
+            }
+        } else if (dataParam) {
+            try {
+                allData = JSON.parse(decodeURIComponent(dataParam));
+                source = 'legacy (' + dataParam.length + ' chars)';
+            } catch (e) {
+                console.error('JSON 파싱 실패:', e);
+                showError('JSON 파싱 실패', e.message || String(e));
+                return;
+            }
+        }
+
+        if (allData) {
+            renderDashboard(allData, source);
+        } else {
+            container.innerHTML =
+                '<p style="text-align:center; color:gray; margin-top:50px;">' +
+                '등록된 데이터가 없습니다.</p>';
+        }
+    } catch (e) {
+        console.error('대시보드 렌더링 실패:', e);
+        showError('대시보드 렌더링 실패', e.message || String(e));
+    }
+})();
+</script>
 </body>
 </html>
